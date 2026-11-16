@@ -83,6 +83,10 @@ docker run --rm -p 8080:8080 sezzle-calculator
 
 Open http://localhost:8080. The image builds the frontend with Node, builds a static Go binary, and runs that binary on `distroless/static` as a non-root user, with `STATIC_DIR=/app/static`.
 
+The image has been built with `docker build --no-cache` and checked end to end:
+- `/health`, the UI and `POST /api/v1/calculate` all respond correctly from the container.
+- The final image is about **15 MB**.
+
 ## API
 
 Base URL: `http://localhost:8080`. Request and response bodies are JSON.
@@ -246,6 +250,22 @@ Full reports: [backend-coverage.txt](docs/backend-coverage.txt), [backend-covera
   - Numbers are IEEE-754 `float64` on both ends, which is enough for a general-purpose calculator. The UI rounds what it displays to 15 significant digits, so `0.1 + 0.2` shows as `0.3`.
   - The UI accepts a dot as the decimal separator, not a comma.
   - The frontend validates input as a convenience for the user; the backend remains the source of truth.
+
+## Troubleshooting
+
+**`docker build` fails at `npm ci` with `Missing: @emnapi/core@… from lock file`.**
+
+- **Why it happens:** Vite 8's bundler has a WebAssembly fallback build whose optional dependencies are `@emnapi/core` and `@emnapi/runtime`. When npm rewrites `package-lock.json` on Windows, it can drop those entries (a known npm bug). `npm ci` on Linux then rejects the lockfile.
+- **Current fix:** both packages are pinned as exact `devDependencies` in `frontend/package.json`, so npm keeps them in the lockfile on every platform.
+- **If it happens again** (for example, after a Vite upgrade needs a different `@emnapi` version):
+  1. Set the pinned versions to the ones listed under `node_modules/@rolldown/binding-wasm32-wasi` in the lockfile.
+  2. Run `npm install` in `frontend/`.
+  3. Check the lockfile on Linux:
+
+```sh
+cd frontend
+docker run --rm -v "$PWD":/src:ro node:24-alpine sh -c "cp -r /src /app && cd /app && npm ci --ignore-scripts"
+```
 
 ## Possible improvements
 

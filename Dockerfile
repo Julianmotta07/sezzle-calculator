@@ -9,8 +9,11 @@ FROM node:24-alpine AS frontend
 WORKDIR /src/frontend
 
 # Install dependencies first so this layer is cached until the lockfile changes.
+# npm ci installs exactly what package-lock.json lists (reproducible) and fails
+# if the lockfile is incomplete for Linux, e.g. after a Windows `npm install`
+# drops platform-specific optional deps. See README > Troubleshooting.
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+RUN npm ci || { echo >&2 "npm ci failed: frontend/package-lock.json is out of sync for Linux. See README > Troubleshooting."; exit 1; }
 
 COPY frontend/ ./
 # Empty base URL: the browser calls /api/v1/... on the same origin that served the page.

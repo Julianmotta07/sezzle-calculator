@@ -66,3 +66,15 @@ Coverage report: cmd/server is at 0% (main, run, envOr) and internal/api has sma
 ```
 Write the final README.md in English with: overview; tech stack; project structure; prerequisites; how to run the backend and the frontend locally; how to run everything with Docker; API reference with curl examples for each endpoint, including success and error responses; how to run tests and generate coverage for both layers, with the current coverage numbers from docs/; design decisions and assumptions (single /calculate endpoint, 400 vs 422, percentage definition, standard library only, pure calculator package, same-origin serving in Docker); possible improvements; and an "AI usage" section linking to PROMPTS.md. Keep it clear and concise.
 ```
+
+## 10. Fix Docker build on a fresh clone (Phase 4)
+
+```
+The Docker build fails on a fresh clone at "RUN npm ci" with: "Missing: @emnapi/core@2.0.0-beta.2 and @emnapi/runtime@2.0.0-beta.2 from lock file". The package-lock.json is generated on Windows and npm drops these Linux-only optional dependencies. Fix this so the Docker build works reliably on a fresh clone (for example, regenerate the lockfile in a Linux container or adjust the install step in the Dockerfile), keep reproducible installs if possible, and explain the trade-off.
+```
+
+## 11. README update after Docker verification (Phase 5)
+
+```
+Yes, update the README to say the Docker image was built and verified on a fresh clone and is about 15 MB.
+```
