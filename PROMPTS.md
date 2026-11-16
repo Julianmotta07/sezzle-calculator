@@ -60,3 +60,9 @@ Add a single multi-stage Dockerfile at the repo root that runs the full stack in
 ```
 Coverage report: cmd/server is at 0% (main, run, envOr) and internal/api has small gaps: the Error() method in errors.go (0%), fromCalcError (66.7%), writeJSON (75%), describeKind (66.7%) and serveFile (75%). Add focused unit tests for envOr and the uncovered branches in internal/api. If run() can be tested without starting a real long-lived server (for example, by starting it on port 0 and shutting it down via context), add that test too; otherwise leave main untested and explain why. Don't change behavior.
 ```
+
+## 9. README (Phase 5)
+
+```
+Write the final README.md in English with: overview; tech stack; project structure; prerequisites; how to run the backend and the frontend locally; how to run everything with Docker; API reference with curl examples for each endpoint, including success and error responses; how to run tests and generate coverage for both layers, with the current coverage numbers from docs/; design decisions and assumptions (single /calculate endpoint, 400 vs 422, percentage definition, standard library only, pure calculator package, same-origin serving in Docker); possible improvements; and an "AI usage" section linking to PROMPTS.md. Keep it clear and concise.
+```
