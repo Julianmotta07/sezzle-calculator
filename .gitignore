@@ -1,0 +1,51 @@
+# ---------- OS / editors ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+
+# ---------- Environment ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Go ----------
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend/bin/
+backend/tmp/
+# Test / coverage output
+*.test
+*.out
+coverage.out
+coverage.html
+# Workspace file (local only)
+go.work
+go.work.sum
+
+# ---------- Node / frontend ----------
+node_modules/
+dist/
+dist-ssr/
+build/
+coverage/
+*.local
+.vite/
+*.tsbuildinfo
+.eslintcache
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
