@@ -1,0 +1,36 @@
+# Keep the build context small and avoid leaking local files into the image.
+
+# VCS and editors
+.git
+.gitignore
+.vscode
+.idea
+**/.DS_Store
+**/Thumbs.db
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+
+# Docs and notes (not needed to build)
+docs
+*.md
+
+# Secrets / local env (the image sets its own env vars)
+**/.env
+**/.env.*
+
+# Frontend: dependencies and outputs are rebuilt inside the image
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/coverage
+frontend/*.tsbuildinfo
+**/*.log
+
+# Backend: local build and test outputs
+backend/bin
+backend/tmp
+backend/*.exe
+backend/*.test
+backend/coverage.*

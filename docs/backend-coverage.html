@@ -65,7 +65,9 @@
 				
 				<option value="file4">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/router.go (100.0%)</option>
 				
-				<option value="file5">github.com/Julianmotta07/sezzle-calculator/backend/internal/calculator/calculator.go (100.0%)</option>
+				<option value="file5">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/static.go (88.9%)</option>
+				
+				<option value="file6">github.com/Julianmotta07/sezzle-calculator/backend/internal/calculator/calculator.go (100.0%)</option>
 				
 				</select>
 			</div>
@@ -85,15 +87,18 @@
 //
 //        PORT            port to listen on (default 8080)
 //        ALLOWED_ORIGIN  browser origin allowed by CORS (default http://localhost:5173)
+//        STATIC_DIR      directory of built frontend files to serve (default: unset, API only)
 package main
 
 import (
         "context"
         "errors"
+        "fmt"
         "log/slog"
         "net/http"
         "os"
         "os/signal"
+        "path/filepath"
         "syscall"
         "time"
 
@@ -115,10 +120,17 @@ func main() <span class="cov0" title="0">{
 func run() error <span class="cov0" title="0">{
         port := envOr("PORT", "8080")
         origin := envOr("ALLOWED_ORIGIN", "http://localhost:5173")
+        staticDir := os.Getenv("STATIC_DIR")
+        if staticDir != "" </span><span class="cov0" title="0">{
+                // Fail fast on a misconfigured path instead of serving 404s at runtime.
+                if _, err := os.Stat(filepath.Join(staticDir, "index.html")); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("STATIC_DIR %q has no index.html: %w", staticDir, err)
+                }</span>
+        }
 
-        srv := &amp;http.Server{
+        <span class="cov0" title="0">srv := &amp;http.Server{
                 Addr:              ":" + port,
-                Handler:           api.NewHandler(api.Config{AllowedOrigin: origin}),
+                Handler:           api.NewHandler(api.Config{AllowedOrigin: origin, StaticDir: staticDir}),
                 ReadHeaderTimeout: 5 * time.Second,
                 ReadTimeout:       10 * time.Second,
                 WriteTimeout:      10 * time.Second,
@@ -130,7 +142,7 @@ func run() error <span class="cov0" title="0">{
 
         serveErr := make(chan error, 1)
         go func() </span><span class="cov0" title="0">{
-                slog.Info("server listening", "addr", srv.Addr, "allowed_origin", origin)
+                slog.Info("server listening", "addr", srv.Addr, "allowed_origin", origin, "static_dir", staticDir)
                 serveErr &lt;- srv.ListenAndServe()
         }</span>()
 
@@ -471,6 +483,10 @@ type Config struct {
         // AllowedOrigin is the single browser origin allowed by CORS,
         // for example "http://localhost:5173". Use "*" to allow any origin.
         AllowedOrigin string
+
+        // StaticDir, when non-empty, is a directory of built frontend files
+        // (containing index.html) served on every path not used by the API.
+        StaticDir string
 }
 
 // NewHandler returns the API's root handler: all routes wrapped in CORS.
@@ -489,11 +505,19 @@ func NewHandler(cfg Config) http.Handler <span class="cov8" title="1">{
         mux.Handle("/api/v1/operations", methodNotAllowed("GET, HEAD"))
         mux.Handle("/api/v1/calculate", methodNotAllowed("POST"))
 
-        // Everything else is a JSON 404.
-        mux.HandleFunc("/", handleNotFound)
+        // Unknown API paths are always a JSON 404, even when serving the frontend.
+        mux.HandleFunc("/api/", handleNotFound)
+        mux.HandleFunc("/health/", handleNotFound)
 
-        return cors(cfg.AllowedOrigin, mux)
-}</span>
+        // Everything else is the frontend if configured, otherwise a JSON 404.
+        if cfg.StaticDir != "" </span><span class="cov8" title="1">{
+                mux.Handle("/", staticHandler(cfg.StaticDir))
+        }</span> else<span class="cov8" title="1"> {
+                mux.HandleFunc("/", handleNotFound)
+        }</span>
+
+        <span class="cov8" title="1">return cors(cfg.AllowedOrigin, mux)</span>
+}
 
 // handleNotFound answers unknown paths with a JSON 404.
 func handleNotFound(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
@@ -541,7 +565,75 @@ func cors(allowedOrigin string, next http.Handler) http.Handler <span class="cov
 }
 </pre>
 		
-		<pre class="file" id="file5" style="display: none">// Package calculator provides pure arithmetic operations on float64 values.
+		<pre class="file" id="file5" style="display: none">package api
+
+import (
+        "io"
+        "io/fs"
+        "log/slog"
+        "net/http"
+        "os"
+        "path"
+        "strings"
+)
+
+// staticHandler serves the built single-page app from dir:
+//   - existing files are served as-is; Vite's hashed files under assets/
+//     are cached for a year, since their names change when their content does;
+//   - any other path (including directories) gets index.html, so client-side
+//     routes work on reload and directory listings are never exposed;
+//   - only GET and HEAD are allowed.
+func staticHandler(dir string) http.Handler <span class="cov8" title="1">{
+        fsys := os.DirFS(dir)
+        wrongMethod := methodNotAllowed("GET, HEAD")
+
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                if r.Method != http.MethodGet &amp;&amp; r.Method != http.MethodHead </span><span class="cov8" title="1">{
+                        wrongMethod.ServeHTTP(w, r)
+                        return
+                }</span>
+
+                // path.Clean on a rooted path removes any "..", so name stays inside dir
+                // (os.DirFS also rejects names that escape it).
+                <span class="cov8" title="1">name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+                if info, err := fs.Stat(fsys, name); err == nil &amp;&amp; !info.IsDir() </span><span class="cov8" title="1">{
+                        if strings.HasPrefix(name, "assets/") </span><span class="cov8" title="1">{
+                                w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+                        }</span> else<span class="cov8" title="1"> {
+                                w.Header().Set("Cache-Control", "no-cache")
+                        }</span>
+                        <span class="cov8" title="1">serveFile(w, r, fsys, name)
+                        return</span>
+                }
+
+                // index.html must always be revalidated so new deploys are picked up.
+                <span class="cov8" title="1">w.Header().Set("Cache-Control", "no-cache")
+                serveFile(w, r, fsys, "index.html")</span>
+        })
+}
+
+// serveFile writes one file from fsys. http.ServeContent sets Content-Type
+// from the extension and handles HEAD, Range and conditional requests.
+func serveFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, name string) <span class="cov8" title="1">{
+        f, err := fsys.Open(name)
+        if err != nil </span><span class="cov8" title="1">{
+                handleNotFound(w, r)
+                return
+        }</span>
+        <span class="cov8" title="1">defer f.Close()
+
+        info, err := f.Stat()
+        content, seekable := f.(io.ReadSeeker)
+        if err != nil || !seekable </span><span class="cov0" title="0">{
+                slog.Error("cannot serve static file", "name", name, "err", err)
+                writeError(w, &amp;apiError{http.StatusInternalServerError, CodeInternal, "internal server error"})
+                return
+        }</span>
+        <span class="cov8" title="1">http.ServeContent(w, r, name, info.ModTime(), content)</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">// Package calculator provides pure arithmetic operations on float64 values.
 //
 // Every operation either returns a finite result and a nil error, or returns
 // 0 and one of the sentinel errors declared below. Callers should compare

@@ -48,3 +48,9 @@ Build the calculator UI in React + TypeScript. Requirements:
 - Responsive layout for mobile using plain CSS (no UI library).
 Split it into small components (Calculator, OperationSelector, ResultDisplay) and a custom hook useCalculator that holds the state and the call to the API client. Use accessible labels and aria-live for results and errors. Write React Testing Library tests for: a successful calculation, client-side validation errors, an API error message, and hiding the second input for sqrt.
 ```
+
+## 7. Docker (Phase 4)
+
+```
+Add a single multi-stage Dockerfile at the repo root that runs the full stack in one container: stage 1 builds the React app with Node, stage 2 builds a static Go binary, and the final small image runs the Go server, which also serves the built frontend files. Add a STATIC_DIR env var to the Go server so it serves those files when set, while keeping /api/v1 and /health routes working. The production frontend build must call the API on the same origin. Add a .dockerignore and update the server tests if needed.
+```

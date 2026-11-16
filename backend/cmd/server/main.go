@@ -4,15 +4,18 @@
 //
 //	PORT            port to listen on (default 8080)
 //	ALLOWED_ORIGIN  browser origin allowed by CORS (default http://localhost:5173)
+//	STATIC_DIR      directory of built frontend files to serve (default: unset, API only)
 package main
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -34,10 +37,17 @@ func main() {
 func run() error {
 	port := envOr("PORT", "8080")
 	origin := envOr("ALLOWED_ORIGIN", "http://localhost:5173")
+	staticDir := os.Getenv("STATIC_DIR")
+	if staticDir != "" {
+		// Fail fast on a misconfigured path instead of serving 404s at runtime.
+		if _, err := os.Stat(filepath.Join(staticDir, "index.html")); err != nil {
+			return fmt.Errorf("STATIC_DIR %q has no index.html: %w", staticDir, err)
+		}
+	}
 
 	srv := &http.Server{
 		Addr:              ":" + port,
-		Handler:           api.NewHandler(api.Config{AllowedOrigin: origin}),
+		Handler:           api.NewHandler(api.Config{AllowedOrigin: origin, StaticDir: staticDir}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -49,7 +59,7 @@ func run() error {
 
 	serveErr := make(chan error, 1)
 	go func() {
-		slog.Info("server listening", "addr", srv.Addr, "allowed_origin", origin)
+		slog.Info("server listening", "addr", srv.Addr, "allowed_origin", origin, "static_dir", staticDir)
 		serveErr <- srv.ListenAndServe()
 	}()
 

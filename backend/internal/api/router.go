@@ -8,6 +8,10 @@ type Config struct {
 	// AllowedOrigin is the single browser origin allowed by CORS,
 	// for example "http://localhost:5173". Use "*" to allow any origin.
 	AllowedOrigin string
+
+	// StaticDir, when non-empty, is a directory of built frontend files
+	// (containing index.html) served on every path not used by the API.
+	StaticDir string
 }
 
 // NewHandler returns the API's root handler: all routes wrapped in CORS.
@@ -26,8 +30,16 @@ func NewHandler(cfg Config) http.Handler {
 	mux.Handle("/api/v1/operations", methodNotAllowed("GET, HEAD"))
 	mux.Handle("/api/v1/calculate", methodNotAllowed("POST"))
 
-	// Everything else is a JSON 404.
-	mux.HandleFunc("/", handleNotFound)
+	// Unknown API paths are always a JSON 404, even when serving the frontend.
+	mux.HandleFunc("/api/", handleNotFound)
+	mux.HandleFunc("/health/", handleNotFound)
+
+	// Everything else is the frontend if configured, otherwise a JSON 404.
+	if cfg.StaticDir != "" {
+		mux.Handle("/", staticHandler(cfg.StaticDir))
+	} else {
+		mux.HandleFunc("/", handleNotFound)
+	}
 
 	return cors(cfg.AllowedOrigin, mux)
 }
