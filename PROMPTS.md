@@ -19,3 +19,13 @@ In backend/, initialize a Go module (github.com/Julianmotta07/sezzle-calculator/
 ```
 Before I commit, explain the changes you just made, file by file: what each part does, why you chose this approach, and one alternative you considered. Keep it concise. Then list the commands I should run to verify it works.
 ```
+
+## 4. HTTP API layer (Phase 2)
+
+```
+Now add the HTTP layer in backend/internal/api using only net/http (Go 1.22+ method routing). Endpoints:
+- GET /health -> {"status":"ok"}
+- GET /api/v1/operations -> list of supported operations and how many operands each needs
+- POST /api/v1/calculate with body {"operation":"divide","a":10,"b":2} -> 200 {"operation":"divide","result":5}
+Validation: return 400 for malformed JSON, unknown fields, unknown operations and missing operands; return 422 for math errors (division by zero, sqrt of a negative, non-finite result). All errors share one JSON shape: {"error":{"code":"DIVISION_BY_ZERO","message":"..."}}. Limit the request body size. Add a small CORS middleware configured by an ALLOWED_ORIGIN env var (default http://localhost:5173). Create cmd/server/main.go that reads PORT (default 8080) and starts the server with graceful shutdown. Write handler tests with net/http/httptest for the success path and every error path.
+```
