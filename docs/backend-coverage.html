@@ -55,17 +55,17 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/Julianmotta07/sezzle-calculator/backend/cmd/server/main.go (0.0%)</option>
+				<option value="file0">github.com/Julianmotta07/sezzle-calculator/backend/cmd/server/main.go (75.0%)</option>
 				
-				<option value="file1">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/errors.go (69.2%)</option>
+				<option value="file1">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/errors.go (100.0%)</option>
 				
-				<option value="file2">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/handlers.go (95.4%)</option>
+				<option value="file2">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/handlers.go (100.0%)</option>
 				
 				<option value="file3">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/operations.go (100.0%)</option>
 				
 				<option value="file4">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/router.go (100.0%)</option>
 				
-				<option value="file5">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/static.go (88.9%)</option>
+				<option value="file5">github.com/Julianmotta07/sezzle-calculator/backend/internal/api/static.go (100.0%)</option>
 				
 				<option value="file6">github.com/Julianmotta07/sezzle-calculator/backend/internal/calculator/calculator.go (100.0%)</option>
 				
@@ -95,6 +95,7 @@ import (
         "errors"
         "fmt"
         "log/slog"
+        "net"
         "net/http"
         "os"
         "os/signal"
@@ -109,26 +110,31 @@ import (
 const shutdownTimeout = 10 * time.Second
 
 func main() <span class="cov0" title="0">{
-        if err := run(); err != nil </span><span class="cov0" title="0">{
+        // Cancelled on SIGINT (Ctrl+C) or SIGTERM (docker stop), which triggers a graceful shutdown.
+        ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+        err := run(ctx, nil)
+        stop()
+        if err != nil </span><span class="cov0" title="0">{
                 slog.Error("server stopped with error", "err", err)
                 os.Exit(1)
         }</span>
 }
 
-// run starts the server and blocks until it fails or receives SIGINT/SIGTERM,
-// then shuts down gracefully.
-func run() error <span class="cov0" title="0">{
+// run starts the server and blocks until it fails or ctx is cancelled,
+// then shuts down gracefully. If onListen is not nil, it is called with the
+// bound address once the server accepts connections (tests use it with PORT=0).
+func run(ctx context.Context, onListen func(net.Addr)) error <span class="cov8" title="1">{
         port := envOr("PORT", "8080")
         origin := envOr("ALLOWED_ORIGIN", "http://localhost:5173")
         staticDir := os.Getenv("STATIC_DIR")
-        if staticDir != "" </span><span class="cov0" title="0">{
+        if staticDir != "" </span><span class="cov8" title="1">{
                 // Fail fast on a misconfigured path instead of serving 404s at runtime.
-                if _, err := os.Stat(filepath.Join(staticDir, "index.html")); err != nil </span><span class="cov0" title="0">{
+                if _, err := os.Stat(filepath.Join(staticDir, "index.html")); err != nil </span><span class="cov8" title="1">{
                         return fmt.Errorf("STATIC_DIR %q has no index.html: %w", staticDir, err)
                 }</span>
         }
 
-        <span class="cov0" title="0">srv := &amp;http.Server{
+        <span class="cov8" title="1">srv := &amp;http.Server{
                 Addr:              ":" + port,
                 Handler:           api.NewHandler(api.Config{AllowedOrigin: origin, StaticDir: staticDir}),
                 ReadHeaderTimeout: 5 * time.Second,
@@ -137,41 +143,48 @@ func run() error <span class="cov0" title="0">{
                 IdleTimeout:       60 * time.Second,
         }
 
-        ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-        defer stop()
+        // Listen + Serve is what ListenAndServe does; splitting it reports a busy
+        // port immediately and exposes the real address when PORT=0.
+        ln, err := net.Listen("tcp", srv.Addr)
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">slog.Info("server listening", "addr", srv.Addr, "allowed_origin", origin, "static_dir", staticDir)
+        if onListen != nil </span><span class="cov8" title="1">{
+                onListen(ln.Addr())
+        }</span>
 
-        serveErr := make(chan error, 1)
-        go func() </span><span class="cov0" title="0">{
-                slog.Info("server listening", "addr", srv.Addr, "allowed_origin", origin, "static_dir", staticDir)
-                serveErr &lt;- srv.ListenAndServe()
+        <span class="cov8" title="1">serveErr := make(chan error, 1)
+        go func() </span><span class="cov8" title="1">{
+                serveErr &lt;- srv.Serve(ln)
         }</span>()
 
-        <span class="cov0" title="0">select </span>{
+        <span class="cov8" title="1">select </span>{
         case err := &lt;-serveErr:<span class="cov0" title="0">
-                // ListenAndServe only returns early on failure (e.g. port in use).
+                // Serve only returns early on failure.
                 return err</span>
-        case &lt;-ctx.Done():<span class="cov0" title="0"></span>
+        case &lt;-ctx.Done():<span class="cov8" title="1"></span>
         }
 
-        <span class="cov0" title="0">slog.Info("shutting down", "timeout", shutdownTimeout)
+        <span class="cov8" title="1">slog.Info("shutting down", "timeout", shutdownTimeout)
         shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
         defer cancel()
         if err := srv.Shutdown(shutdownCtx); err != nil </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov0" title="0">if err := &lt;-serveErr; !errors.Is(err, http.ErrServerClosed) </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err := &lt;-serveErr; !errors.Is(err, http.ErrServerClosed) </span><span class="cov0" title="0">{
                 return err
         }</span>
-        <span class="cov0" title="0">slog.Info("server stopped")
+        <span class="cov8" title="1">slog.Info("server stopped")
         return nil</span>
 }
 
 // envOr returns the environment variable key, or fallback if it is unset or empty.
-func envOr(key, fallback string) string <span class="cov0" title="0">{
-        if v := os.Getenv(key); v != "" </span><span class="cov0" title="0">{
+func envOr(key, fallback string) string <span class="cov8" title="1">{
+        if v := os.Getenv(key); v != "" </span><span class="cov8" title="1">{
                 return v
         }</span>
-        <span class="cov0" title="0">return fallback</span>
+        <span class="cov8" title="1">return fallback</span>
 }
 </pre>
 		
@@ -224,7 +237,7 @@ type apiError struct {
         message string
 }
 
-func (e *apiError) Error() string <span class="cov0" title="0">{ return e.message }</span>
+func (e *apiError) Error() string <span class="cov8" title="1">{ return e.message }</span>
 
 // badRequest builds a 400 apiError.
 func badRequest(code, message string) *apiError <span class="cov8" title="1">{
@@ -241,7 +254,7 @@ func fromCalcError(err error) *apiError <span class="cov8" title="1">{
                 return &amp;apiError{http.StatusUnprocessableEntity, CodeNegativeSqrt, "cannot take the square root of a negative number"}</span>
         case errors.Is(err, calculator.ErrNonFinite):<span class="cov8" title="1">
                 return &amp;apiError{http.StatusUnprocessableEntity, CodeNonFiniteResult, "result is not a finite number (overflow or undefined)"}</span>
-        default:<span class="cov0" title="0">
+        default:<span class="cov8" title="1">
                 slog.Error("unexpected calculator error", "err", err)
                 return &amp;apiError{http.StatusInternalServerError, CodeInternal, "internal server error"}</span>
         }
@@ -251,7 +264,7 @@ func fromCalcError(err error) *apiError <span class="cov8" title="1">{
 func writeJSON(w http.ResponseWriter, status int, v any) <span class="cov8" title="1">{
         w.Header().Set("Content-Type", "application/json")
         w.WriteHeader(status)
-        if err := json.NewEncoder(w).Encode(v); err != nil </span><span class="cov0" title="0">{
+        if err := json.NewEncoder(w).Encode(v); err != nil </span><span class="cov8" title="1">{
                 slog.Error("failed to encode response", "err", err)
         }</span>
 }
@@ -376,7 +389,7 @@ func decodeError(err error) *apiError <span class="cov8" title="1">{
                 // encoding/json has no typed error for this case; the prefix is stable.
                 field := strings.TrimPrefix(err.Error(), "json: unknown field ")
                 return badRequest(CodeUnknownField, "request body contains unknown field "+field)</span>
-        default:<span class="cov0" title="0">
+        default:<span class="cov8" title="1">
                 return badRequest(CodeInvalidJSON, "request body is not valid JSON")</span>
         }
 }
@@ -396,7 +409,7 @@ func asTooLarge(err error) *apiError <span class="cov8" title="1">{
 
 // describeKind names the JSON type a Go field expects, for error messages.
 func describeKind(t reflect.Type) string <span class="cov8" title="1">{
-        for t.Kind() == reflect.Pointer </span><span class="cov0" title="0">{
+        for t.Kind() == reflect.Pointer </span><span class="cov8" title="1">{
                 t = t.Elem()
         }</span>
         <span class="cov8" title="1">switch t.Kind() </span>{
@@ -404,7 +417,7 @@ func describeKind(t reflect.Type) string <span class="cov8" title="1">{
                 return "a finite number"</span>
         case reflect.String:<span class="cov8" title="1">
                 return "a string"</span>
-        default:<span class="cov0" title="0">
+        default:<span class="cov8" title="1">
                 return "of type " + t.String()</span>
         }
 }
@@ -624,7 +637,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, name string) 
 
         info, err := f.Stat()
         content, seekable := f.(io.ReadSeeker)
-        if err != nil || !seekable </span><span class="cov0" title="0">{
+        if err != nil || !seekable </span><span class="cov8" title="1">{
                 slog.Error("cannot serve static file", "name", name, "err", err)
                 writeError(w, &amp;apiError{http.StatusInternalServerError, CodeInternal, "internal server error"})
                 return

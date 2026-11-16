@@ -54,3 +54,9 @@ Split it into small components (Calculator, OperationSelector, ResultDisplay) an
 ```
 Add a single multi-stage Dockerfile at the repo root that runs the full stack in one container: stage 1 builds the React app with Node, stage 2 builds a static Go binary, and the final small image runs the Go server, which also serves the built frontend files. Add a STATIC_DIR env var to the Go server so it serves those files when set, while keeping /api/v1 and /health routes working. The production frontend build must call the API on the same origin. Add a .dockerignore and update the server tests if needed.
 ```
+
+## 8. Backend coverage improvements (Phase 4)
+
+```
+Coverage report: cmd/server is at 0% (main, run, envOr) and internal/api has small gaps: the Error() method in errors.go (0%), fromCalcError (66.7%), writeJSON (75%), describeKind (66.7%) and serveFile (75%). Add focused unit tests for envOr and the uncovered branches in internal/api. If run() can be tested without starting a real long-lived server (for example, by starting it on port 0 and shutting it down via context), add that test too; otherwise leave main untested and explain why. Don't change behavior.
+```

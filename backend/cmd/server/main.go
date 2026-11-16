@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,15 +27,20 @@ import (
 const shutdownTimeout = 10 * time.Second
 
 func main() {
-	if err := run(); err != nil {
+	// Cancelled on SIGINT (Ctrl+C) or SIGTERM (docker stop), which triggers a graceful shutdown.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := run(ctx, nil)
+	stop()
+	if err != nil {
 		slog.Error("server stopped with error", "err", err)
 		os.Exit(1)
 	}
 }
 
-// run starts the server and blocks until it fails or receives SIGINT/SIGTERM,
-// then shuts down gracefully.
-func run() error {
+// run starts the server and blocks until it fails or ctx is cancelled,
+// then shuts down gracefully. If onListen is not nil, it is called with the
+// bound address once the server accepts connections (tests use it with PORT=0).
+func run(ctx context.Context, onListen func(net.Addr)) error {
 	port := envOr("PORT", "8080")
 	origin := envOr("ALLOWED_ORIGIN", "http://localhost:5173")
 	staticDir := os.Getenv("STATIC_DIR")
@@ -54,18 +60,25 @@ func run() error {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	// Listen + Serve is what ListenAndServe does; splitting it reports a busy
+	// port immediately and exposes the real address when PORT=0.
+	ln, err := net.Listen("tcp", srv.Addr)
+	if err != nil {
+		return err
+	}
+	slog.Info("server listening", "addr", srv.Addr, "allowed_origin", origin, "static_dir", staticDir)
+	if onListen != nil {
+		onListen(ln.Addr())
+	}
 
 	serveErr := make(chan error, 1)
 	go func() {
-		slog.Info("server listening", "addr", srv.Addr, "allowed_origin", origin, "static_dir", staticDir)
-		serveErr <- srv.ListenAndServe()
+		serveErr <- srv.Serve(ln)
 	}()
 
 	select {
 	case err := <-serveErr:
-		// ListenAndServe only returns early on failure (e.g. port in use).
+		// Serve only returns early on failure.
 		return err
 	case <-ctx.Done():
 	}
