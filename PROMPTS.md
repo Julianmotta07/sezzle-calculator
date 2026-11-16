@@ -29,3 +29,9 @@ Now add the HTTP layer in backend/internal/api using only net/http (Go 1.22+ met
 - POST /api/v1/calculate with body {"operation":"divide","a":10,"b":2} -> 200 {"operation":"divide","result":5}
 Validation: return 400 for malformed JSON, unknown fields, unknown operations and missing operands; return 422 for math errors (division by zero, sqrt of a negative, non-finite result). All errors share one JSON shape: {"error":{"code":"DIVISION_BY_ZERO","message":"..."}}. Limit the request body size. Add a small CORS middleware configured by an ALLOWED_ORIGIN env var (default http://localhost:5173). Create cmd/server/main.go that reads PORT (default 8080) and starts the server with graceful shutdown. Write handler tests with net/http/httptest for the success path and every error path.
 ```
+
+## 5. Frontend API client and test setup (Phase 3)
+
+```
+In frontend/, set up Vitest with React Testing Library and jsdom, plus a coverage script (npm run test:coverage) using @vitest/coverage-v8. Then create a typed API client in src/api/calculator.ts with a function calculate(operation, a, b?) that calls POST /api/v1/calculate on the Go backend. Read the base URL from import.meta.env.VITE_API_URL; in development default to http://localhost:8080, and allow an empty value so production builds call the same origin. Define TypeScript types for the request, the success response and the error shape {"error":{"code","message"}}. Throw a typed ApiError with code and message when the response is not OK, and a clear error on network failure. Write unit tests that mock fetch for: success, API error (422 division by zero) and network failure.
+```
