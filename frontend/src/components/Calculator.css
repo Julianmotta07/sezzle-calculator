@@ -1,0 +1,135 @@
+.calculator {
+  width: 100%;
+  max-width: 30rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.calculator h1 {
+  margin: 0 0 1.25rem;
+  font-size: 1.75rem;
+  color: var(--text-strong);
+}
+
+.calculator-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Two operands side by side when there is room, stacked otherwise.
+   A single operand (sqrt) takes the full width. */
+.operands {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.field label {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.field input,
+.field select {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  /* 16px+ prevents iOS Safari from zooming on focus. */
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text-strong);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.calculate-button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--danger);
+}
+
+.calculate-button {
+  min-height: 3rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.calculate-button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.calculate-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.result {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  min-height: 4.5rem;
+  background: var(--surface-muted);
+  border-radius: 0.75rem;
+}
+
+.result p {
+  margin: 0;
+}
+
+.result-placeholder {
+  color: var(--text-muted);
+}
+
+.result-expression {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.result-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.result-error p {
+  margin-top: 0.5rem;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .calculator {
+    padding: 1.25rem 1rem;
+    border-radius: 0.75rem;
+  }
+
+  .calculator h1 {
+    font-size: 1.5rem;
+  }
+}

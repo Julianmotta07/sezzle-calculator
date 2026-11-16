@@ -35,3 +35,16 @@ Validation: return 400 for malformed JSON, unknown fields, unknown operations an
 ```
 In frontend/, set up Vitest with React Testing Library and jsdom, plus a coverage script (npm run test:coverage) using @vitest/coverage-v8. Then create a typed API client in src/api/calculator.ts with a function calculate(operation, a, b?) that calls POST /api/v1/calculate on the Go backend. Read the base URL from import.meta.env.VITE_API_URL; in development default to http://localhost:8080, and allow an empty value so production builds call the same origin. Define TypeScript types for the request, the success response and the error shape {"error":{"code","message"}}. Throw a typed ApiError with code and message when the response is not OK, and a clear error on network failure. Write unit tests that mock fetch for: success, API error (422 division by zero) and network failure.
 ```
+
+## 6. Calculator UI (Phase 3)
+
+```
+Build the calculator UI in React + TypeScript. Requirements:
+- Two numeric inputs; hide the second one for unary operations (sqrt).
+- A selector for operations: add, subtract, multiply, divide, power, sqrt, percentage.
+- A "Calculate" button and a result area.
+- Client-side validation (empty or non-numeric values) with clear messages, plus friendly messages for API errors such as division by zero.
+- A loading state that disables the button while the request is in progress.
+- Responsive layout for mobile using plain CSS (no UI library).
+Split it into small components (Calculator, OperationSelector, ResultDisplay) and a custom hook useCalculator that holds the state and the call to the API client. Use accessible labels and aria-live for results and errors. Write React Testing Library tests for: a successful calculation, client-side validation errors, an API error message, and hiding the second input for sqrt.
+```
