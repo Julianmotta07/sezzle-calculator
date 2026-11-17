@@ -83,7 +83,7 @@ docker run --rm -p 8080:8080 sezzle-calculator
 
 Open http://localhost:8080. The image builds the frontend with Node, builds a static Go binary, and runs that binary on `distroless/static` as a non-root user, with `STATIC_DIR=/app/static`.
 
-The image has been built with `docker build --no-cache` and checked end to end:
+The image has been built and verified on a fresh clone with `docker build --no-cache`:
 - `/health`, the UI and `POST /api/v1/calculate` all respond correctly from the container.
 - The final image is about **15 MB**.
 
